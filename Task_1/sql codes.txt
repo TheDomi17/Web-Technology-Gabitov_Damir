@@ -1,0 +1,45 @@
+CREATE TABLE players (
+    player_id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    age INT NOT NULL CHECK (age >= 0),
+    created_date DATE NOT NULL 
+        DEFAULT CURRENT_DATE 
+        CHECK (created_date >= '2026-01-01')
+);
+
+CREATE TABLE games (
+    game_id SERIAL PRIMARY KEY,
+    title VARCHAR(100) UNIQUE NOT NULL,
+    genre VARCHAR(50) NOT NULL,
+    release_date DATE NOT NULL 
+        CHECK (release_date >= '2026-01-01'),
+    price NUMERIC(8,2) DEFAULT 0 
+        CHECK (price >= 0)
+);
+
+CREATE TABLE tournaments (
+    tournament_id SERIAL PRIMARY KEY,
+    game_id INT NOT NULL 
+        REFERENCES games(game_id),
+    name VARCHAR(100) NOT NULL,
+    prize_pool NUMERIC(10,2) NOT NULL 
+        CHECK (prize_pool >= 0),
+    start_date DATE NOT NULL 
+        CHECK (start_date >= '2026-01-01'),
+    UNIQUE(name, game_id)
+);
+
+CREATE TABLE registrations (
+    registration_id SERIAL PRIMARY KEY,
+    player_id INT NOT NULL 
+        REFERENCES players(player_id),
+    tournament_id INT NOT NULL 
+        REFERENCES tournaments(tournament_id),
+    registration_date DATE NOT NULL 
+        DEFAULT CURRENT_DATE 
+        CHECK (registration_date >= '2026-01-01'),
+    score INT DEFAULT 0 
+        CHECK (score >= 0),
+    UNIQUE(player_id, tournament_id)
+);
