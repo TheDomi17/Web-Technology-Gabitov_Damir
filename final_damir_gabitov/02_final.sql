@@ -1,10 +1,18 @@
-DROP SCHEMA IF EXISTS music_streaming CASCADE;
-CREATE SCHEMA IF NOT EXISTS music_streaming;
-SET search_path TO music_streaming
+--CREATE DATABASE music_streaming_db;
 
--- ============================================================
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT FROM pg_database
+        WHERE datname = 'music_streaming_db'
+    ) THEN
+        EXECUTE 'CREATE DATABASE music_streaming_db';
+    END IF;
+END $$;
+
+CREATE SCHEMA IF NOT EXISTS music_streaming;
+
 -- PART 2: CREATE TABLE
--- ============================================================
 
 CREATE TABLE IF NOT EXISTS music_streaming.users (
     user_id SERIAL PRIMARY KEY,
@@ -117,27 +125,20 @@ CREATE TABLE IF NOT EXISTS music_streaming.subscriptions (
     status VARCHAR(20) DEFAULT 'active'
 );
 
--- ============================================================
 -- PART 3: ALTER TABLE
--- ============================================================
 
--- add phone number for users
 ALTER TABLE music_streaming.users
 ADD COLUMN IF NOT EXISTS phone_number VARCHAR(15);
 
--- international numbers may be longer
 ALTER TABLE music_streaming.users
 ALTER COLUMN phone_number TYPE VARCHAR(20);
 
--- rename playlist_name to title
 ALTER TABLE music_streaming.playlists
 RENAME COLUMN playlist_name TO title;
 
--- subscriptions are active by default
 ALTER TABLE music_streaming.subscriptions
 ALTER COLUMN status SET DEFAULT 'active';
 
--- songs must have unique title inside system
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -150,9 +151,7 @@ BEGIN
     END IF;
 END $$;
 
--- ============================================================
 -- CHECK CONSTRAINTS
--- ============================================================
 
 DO $$
 BEGIN
@@ -204,34 +203,27 @@ BEGIN
 
 END $$;
 
--- restrict gender values
 ALTER TABLE music_streaming.users
 ADD CONSTRAINT check_gender
 CHECK (gender IN ('M', 'F', 'Other'));
 
--- duration must be positive
 ALTER TABLE music_streaming.songs
 ADD CONSTRAINT check_duration
 CHECK (duration_seconds > 0);
 
--- play count cannot be negative
 ALTER TABLE music_streaming.songs
 ADD CONSTRAINT check_play_count
 CHECK (play_count >= 0);
 
--- subscription dates must be after 2026
 ALTER TABLE music_streaming.subscriptions
 ADD CONSTRAINT check_subscription_date
 CHECK (start_date > DATE '2026-01-01');
 
--- valid subscription statuses only
 ALTER TABLE music_streaming.subscriptions
 ADD CONSTRAINT check_subscription_status
 CHECK (status IN ('active', 'expired', 'cancelled'));
 
--- ============================================================
 -- PART 4: INSERT
--- ============================================================
 
 TRUNCATE TABLE
 music_streaming.playlist_song,
@@ -244,9 +236,7 @@ music_streaming.artists,
 music_streaming.users
 RESTART IDENTITY CASCADE;
 
--- ============================================================
 -- USERS
--- ============================================================
 
 INSERT INTO music_streaming.users (
     first_name,
@@ -261,9 +251,7 @@ VALUES
 ('Ilya', 'Osipov', 'monesy@gmail.com', 'M', '2001-06-20', '+77081234567'),
 ('Maxim', 'Lukin', 'kyousuke@gmail.com', 'M', '1999-11-11', '+77091234567');
 
--- ============================================================
 -- ARTISTS
--- ============================================================
 
 INSERT INTO music_streaming.artists (
     stage_name,
@@ -275,9 +263,7 @@ VALUES
 ('Markul', 'Latvia', 2013),
 ('The Weeknd', 'Canada', 2010);
 
--- ============================================================
 -- GENRES
--- ============================================================
 
 INSERT INTO music_streaming.genres (
     genre_name
@@ -287,9 +273,7 @@ VALUES
 ('R&B'),
 ('Pop');
 
--- ============================================================
 -- ALBUMS
--- ============================================================
 
 INSERT INTO music_streaming.albums (
     artist_id,
@@ -337,9 +321,7 @@ VALUES
     '2026-04-10'
 );
 
--- ============================================================
 -- SONGS
--- ============================================================
 
 INSERT INTO music_streaming.songs (
     album_id,
@@ -378,9 +360,7 @@ VALUES
     FALSE
 );
 
--- ============================================================
 -- PLAYLISTS
--- ============================================================
 
 INSERT INTO music_streaming.playlists (
     user_id,
@@ -411,9 +391,7 @@ VALUES
     'Chill Vibes'
 );
 
--- ============================================================
 -- PLAYLIST SONG
--- ============================================================
 
 INSERT INTO music_streaming.playlist_song (
     playlist_id,
@@ -427,9 +405,7 @@ JOIN music_streaming.songs s
 ON s.title IN ('FE!N', 'Starboy')
 WHERE p.title = 'DomiLand';
 
--- ============================================================
 -- SUBSCRIPTIONS
--- ============================================================
 
 INSERT INTO music_streaming.subscriptions (
     user_id,
@@ -476,16 +452,12 @@ VALUES
     'expired'
 );
 
--- ============================================================
 -- PART 5: UPDATE
--- ============================================================
 
--- expired subscriptions should be updated
 UPDATE music_streaming.subscriptions
 SET status = 'expired'
 WHERE end_date < CURRENT_DATE;
 
--- update song play counts based on playlists
 UPDATE music_streaming.songs s
 SET play_count = sub.total_count
 FROM (
@@ -497,11 +469,8 @@ FROM (
 ) sub
 WHERE s.song_id = sub.song_id;
 
--- ============================================================
 -- PART 5: DELETE
--- ============================================================
 
--- remove old playlists but rollback for demo preservation
 BEGIN;
 
 DELETE FROM music_streaming.playlists
@@ -510,9 +479,7 @@ RETURNING playlist_id, title;
 
 ROLLBACK;
 
--- ============================================================
 -- PART 6: GRANT / REVOKE
--- ============================================================
 
 DO $$
 BEGIN
@@ -552,7 +519,6 @@ GRANT INSERT, UPDATE
 ON music_streaming.playlists
 TO music_editor;
 
--- editors should not update playlists directly anymore
 REVOKE UPDATE
 ON music_streaming.playlists
 FROM music_editor;
